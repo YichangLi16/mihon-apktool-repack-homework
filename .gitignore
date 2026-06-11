@@ -1,0 +1,8 @@
+work/
+dist/
+keys/
+*.apk
+*.keystore
+*.jks
+.DS_Store
+
