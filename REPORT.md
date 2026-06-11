@@ -191,38 +191,95 @@ work/verify_decoded/res/values/strings.xml:
 
 说明最终签名 APK 中已经包含修改后的应用名称资源。
 
-当前本机未检测到已连接 adb 设备：
+随后使用 Android Studio 虚拟机 `Pixel_7_2` 进行 adb 安装验证。
+
+启动并等待设备在线：
+
+```bash
+emulator -avd Pixel_7_2 -no-snapshot-load -no-audio -no-boot-anim
+adb devices -l
+```
+
+设备状态：
 
 ```text
-List of devices attached
+emulator-5554 device product:sdk_gphone16k_arm64 model:sdk_gphone16k_arm64 device:emu64a16k
 ```
 
-如连接模拟器或手机，可继续执行安装验证：
+首次执行 `adb install -r` 时，虚拟机中已经存在同包名应用，且签名不同，因此出现更新安装失败：
 
-```bash
-./scripts/05_install_optional.sh
+```text
+INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package app.mihon.dev signatures do not match newer version
 ```
 
-或手动执行：
-
-```bash
-adb install -r dist/mihon-apktool-demo-signed.apk
-```
-
-如果设备中已安装同包名但签名不同的应用，需要先卸载：
+因此先卸载旧包，再安装重签名 APK：
 
 ```bash
 adb uninstall app.mihon.dev
 adb install dist/mihon-apktool-demo-signed.apk
 ```
 
-安装后 Launcher 中应用名称应显示为：
+安装结果：
 
 ```text
-Mihon APKTool Demo
+Success
+Performing Incremental Install
+Success
+Install command complete in 920 ms
 ```
+
+安装后查询包信息：
+
+```bash
+adb shell pm list packages | grep app.mihon.dev
+adb shell pm path app.mihon.dev
+adb shell dumpsys package app.mihon.dev
+```
+
+输出摘要：
+
+```text
+package:app.mihon.dev
+package:/data/app/.../app.mihon.dev-.../base.apk
+versionCode=22 minSdk=26 targetSdk=36
+versionName=0.19.9-11
+firstInstallTime=2026-06-11 09:07:28
+lastUpdateTime=2026-06-11 09:07:28
+```
+
+解析主 Activity：
+
+```bash
+adb shell cmd package resolve-activity --brief app.mihon.dev
+```
+
+输出：
+
+```text
+app.mihon.dev/eu.kanade.tachiyomi.ui.main.MainActivity
+```
+
+启动应用：
+
+```bash
+adb shell monkey -p app.mihon.dev -c android.intent.category.LAUNCHER 1
+```
+
+输出：
+
+```text
+Events injected: 1
+```
+
+Launcher 数据中可见修改后的应用名称：
+
+```text
+targetComponent=ComponentInfo{app.mihon.dev/eu.kanade.tachiyomi.ui.main.MainActivity}
+title=Mihon APKTool Demo
+```
+
+虚拟机截图见：[screenshots/emulator-mihon-apktool-demo.png](screenshots/emulator-mihon-apktool-demo.png)。
 
 ## 9. 实验结论
 
-本实验基于 Mihon 项目 APK 完成了 APKTool 解包、资源修改、重打包、zipalign、签名和签名验证。通过对最终签名 APK 的二次反解，确认修改后的 `app_name` 已写入重打包产物，说明 APKTool 修改与回编译流程有效。
-
+本实验基于 Mihon 项目 APK 完成了 APKTool 解包、资源修改、重打包、zipalign、签名、签名验证和虚拟机安装验证。通过对最终签名 APK 的二次反解，确认修改后的 `app_name` 已写入重打包产物；通过 adb 安装、包信息查询、主 Activity 启动和 Launcher 标题检查，确认重打包 APK 可以在 Android 虚拟机中安装和运行。
